@@ -1,43 +1,14 @@
 from machine import Pin, SPI
 import time
 import ustruct
+import gc
 
-# No Operation
-_NOP = const(0x00)
+gc.collect()
+
 # Software reset
 _SWRESET = const(0x01)
-# Read Display ID
-_RDDID = const(0x04)
-# Read Display Status
-_RDDST = const(0x09)
-# Read Display Power
-_RDDPM = const(0x0A)
-# Read Display
-_RDDMADCTL = const(0x0B)
-# Read Display Pixel
-_RDDCOLMOD = const(0x0C)
-# Read Display Image
-_RDDIM = const(0x0D)
-# Read Display Signal
-_RDDSM = const(0x0E)
-
-# Sleep in & booster off
-_SLPIN = const(0x10)
 # Sleep out & booster on
 _SLPOUT = const(0x11)
-# Partial mode on
-_PTLON = const(0x12)
-# Partial off (Normal)
-_NORON = const(0x13)
-
-# Display inversion off
-_INVOFF = const(0x20)
-# Display inversion on
-_INVON = const(0x21)
-# Hamma curve select
-_GAMSET = const(0x26)
-# Display off
-_DISPOFF = const(0x28)
 # Display on
 _DISPON = const(0x29)
 # Column address set
@@ -46,27 +17,6 @@ _CASET = const(0x2A)
 _RASET = const(0x2B)
 # Memory write
 _RAMWR = const(0x2C)
-# Memory read
-_RAMRD = const(0x2E)
-
-# Partial start/end address set
-_PTLAR = const(0x30)
-# Tearing effect line off
-_TEOFF = const(0x34)
-# Tearing effect mode set & on
-_TEON = const(0x35)
-# Memory data access control
-_MADCTL = const(0x36)
-# Idle mode off
-_IDMOFF = const(0x38)
-# Idle mode on
-_IDMON = const(0x39)
-# Interface pixel format
-_COLMOD = const(0x3A)
-# Read IDn (1..3)
-_RDID1 = const(0xDA)
-_RDID2 = const(0xDB)
-_RDID3 = const(0xDC)
 
 
 class ST7735(object):
@@ -139,18 +89,18 @@ class ST7735(object):
         Sets a rectangular display window into which pixel data is placed
         """
         self._write(command=_CASET)
-        self._write(data=self.encode_address(x0))
-        self._write(data=self.encode_address(x1))
+        self._write(data=self._encode_address(x0))
+        self._write(data=self._encode_address(x1))
         self._write(command=_RASET)
-        self._write(data=self.encode_address(y0))
-        self._write(data=self.encode_address(y1))
+        self._write(data=self._encode_address(y0))
+        self._write(data=self._encode_address(y1))
 
-    def draw_pixel(self, x, y, color):
+    def fill_pixel(self, x, y, color):
         """
         Draws a single pixel on screen
         """
         self._set_rect(x, y, x, y)
-        self._write(command=_RAMWR, data=self.encode_color(color))
+        self._write(command=_RAMWR, data=self._encode_color(color))
 
     def fill_rect(self, x, y, w, h, color):
         """
@@ -163,32 +113,102 @@ class ST7735(object):
 
         self._set_rect(x, y, x+w-1, y+h-1)
         self._write(command=_RAMWR)
-        self._write_chunks(self.encode_color(color), w*h)
+        self._write_chunks(self._encode_color(color), w*h)
 
-    def encode_color(self, color):
+    def clear(self, color=0x000000):
+        """
+        Clears the screen to a color
+        """
+        self.fill_rect(0, 0, self.width, self.height, color)
+
+    def char(self, x, y, char, font, color=0xffffff, size=1):
+        """
+        Draws a camera at a given position using the user font. The
+        font is a dictionary and can be scaled by size
+        """
+        if font is None:
+            return
+
+        start_char = font['start']
+        end_char = font['end']
+        ci = ord(char)
+
+        if start_char <= ci <= end_char:
+            width = font['width']
+            height = font['height']
+            ci = (ci - start_char) * width
+
+            ch = font['data'][ci:ci+width]
+
+            px = x
+            if size <= 1:
+                for c in ch:
+                    py = y
+                    for _ in range(height):
+                        if c & 0x01:
+                            self.fill_pixel(px, py, color)
+                        py += 1
+                        c >>= 1
+                    px += 1
+            else:
+                for c in ch:
+                    py = y
+                    for _ in range(height):
+                        if c & 0x01:
+                            self.fill_rect(px, py, size, size, color)
+                        py += size
+                        c >>= 1
+                    px += size
+        else:
+            return
+
+    def text(self, x, y, string, font, color=0xffffff, size=1):
+        """
+        Draws text at a given position using the user font. Font can be
+        scaled with the size argument.
+        """
+        if font is None:
+            return
+
+        width = size * font['width'] + 1
+
+        px = x
+        for c in string:
+            if c == '\n':
+                y += size * font['height'] + 1
+                px = x
+            else:
+                self.char(px, y, c, font, color, size)
+                px += width
+
+                if px + width > self.width:
+                    y += size * font['height'] + 1
+                    px = x
+
+    def _encode_color(self, color):
         """
         Encodes 24bit int to address array with three 8bit values
         """
         return [(color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff]
 
-    def encode_address(self, address):
+    def _encode_address(self, address):
         """
         Encodes 16bit int to address array with two 8bit values
         """
         return [(address >> 8) & 0xff, address & 0xff]
 
-    def _write_chunks(self, data, reps, chunk_size=1024):
+    def _write_chunks(self, data, reps, chunk_size=512):
         """
         Writes a multiple of single bytes (8 bits) in one chunk to
         speed up transfer
         """
-        # Reduce since max SPI buffer is 1024 bytes
-        chunk_size //= len(data)
+        chunk_size //= (len(data))
         chunks, rest = divmod(reps, chunk_size)
         if chunks:
             for _ in range(chunks):
                 self._write(data=data*chunk_size)
         self._write(data=data*rest)
+        gc.collect()
 
     def _write(self, command=None, data=None):
         """

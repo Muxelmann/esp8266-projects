@@ -96,7 +96,7 @@ class ST7735(object):
         if hardware:
             print('TFT via hardware-SPI')
             self.spi = SPI(1,
-                           baudrate=16000000,
+                           baudrate=20000000,
                            polarity=self._spi_polarity,
                            phase=self._spi_phase)
         else:
@@ -113,7 +113,7 @@ class ST7735(object):
         self.reset()
 
         self.width = width
-        self.heigh = height
+        self.height = height
 
         self.init_display()
 
@@ -130,69 +130,65 @@ class ST7735(object):
         """
         Initialises display
         """
-        self.write_command(_SWRESET)
-        self.write_command(_SLPOUT)
-        self.write_command(_DISPON)
+        self._write(command=_SWRESET)
+        self._write(command=_SLPOUT)
+        self._write(command=_DISPON)
 
-    def write_command(self, command):
-        self._write(command=command)
-
-    def write_data(self, data):
-        self._write(data=[data])
-
-    def write_list(self, byte_list):
-        """
-        Sends a list of bytes to the display as data
-        """
-        self._write(data=byte_list)
-
-    def write888(self, value, reps=1):
-        """
-        Writes a 24bit value of data to the display
-        """
-        d0 = (value >> 16) & 0xff # upper 8 bits e.g. red
-        d1 = (value >> 8) & 0xff  # middle 8 bits e.g. green
-        d2 = value & 0xff         # lover 8 bits e.g. blue
-        d_list = [d0, d1, d2]
-        for _ in range(reps):
-            self.write_list(d_list)
-
-    def write88(self, value, reps=1):
-        """
-        Writes a 16bit value of data to the display
-        """
-        d0 = (value >> 8) & 0xff
-        d1 = value & 0xff
-        d_list = [d0, d1]
-        for _ in range(reps):
-            self.write_list(d_list)
-
-    def set_addr_window(self, x0, y0, x1, y1):
+    def _set_rect(self, x0, y0, x1, y1):
         """
         Sets a rectangular display window into which pixel data is placed
         """
-        self.write_command(_CASET)
-        self.write88(x0)
-        self.write88(x1)
-        self.write_command(_RASET)
-        self.write88(y0)
-        self.write88(y1)
+        self._write(command=_CASET)
+        self._write(data=self.encode_address(x0))
+        self._write(data=self.encode_address(x1))
+        self._write(command=_RASET)
+        self._write(data=self.encode_address(y0))
+        self._write(data=self.encode_address(y1))
 
     def draw_pixel(self, x, y, color):
         """
         Draws a single pixel on screen
         """
-        self.set_addr_window(x, y, x, y)
-        self.write_command(_RAMWR)
-        self.write888(color)
+        self._set_rect(x, y, x, y)
+        self._write(command=_RAMWR, data=self.encode_color(color))
 
     def fill_rect(self, x, y, w, h, color):
         """
         Draws a rectangle in a given color
         """
-        self.set_addr_window(x, y, x+w-1, y+h-1)
-        self.write_command(_RAMWR)
-        self.write888(color, reps=w*h)
+        x = min(self.width-1, max(0, x))
+        y = min(self.height-1, max(0, y))
+        w = min(self.width-x, max(1, w))
+        h = min(self.height-y, max(1, h))
+
+        self._set_rect(x, y, x+w-1, y+h-1)
+        self._write(command=_RAMWR)
+        self._write_chunks(self.encode_color(color), w*h)
+
+    def encode_color(self, color):
+        """
+        Encodes 24bit int to address array with three 8bit values
+        """
+        return [(color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff]
+
+    def encode_address(self, address):
+        """
+        Encodes 16bit int to address array with two 8bit values
+        """
+        return [(address >> 8) & 0xff, address & 0xff]
+
+    def _write_chunks(self, data, reps, chunk_size=1024):
+        """
+        Writes a multiple of single bytes (8 bits) in one chunk to
+        speed up transfer
+        """
+        # Reduce since max SPI buffer is 1024 bytes
+        chunk_size //= len(data)
+        chunks, rest = divmod(reps, chunk_size)
+        if chunks:
+            for _ in range(chunks):
+                self._write(data=data*chunk_size)
+        self._write(data=data*rest)
 
     def _write(self, command=None, data=None):
         """

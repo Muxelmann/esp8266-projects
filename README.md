@@ -7,8 +7,7 @@ This is a repository containing several MicroPyhton based projects that can be e
 
 ## ST7735 screen
 
-A slow implementation using hardware SPI to send data to the ST7735 display.
-
+A fast implementation using hardware SPI to send data to the ST7735 display. For more information refer to the folder's README file.
 
 
 

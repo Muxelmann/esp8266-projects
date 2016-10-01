@@ -81,8 +81,11 @@ class ST7735(object):
         Initialises display
         """
         self._write(command=_SWRESET)
+        time.sleep_ms(150)
         self._write(command=_SLPOUT)
+        time.sleep_ms(255)
         self._write(command=_DISPON)
+        self.clear()
 
     def _set_rect(self, x0, y0, x1, y1):
         """
@@ -120,6 +123,7 @@ class ST7735(object):
         Clears the screen to a color
         """
         self.fill_rect(0, 0, self.width, self.height, color)
+        gc.collect()
 
     def char(self, x, y, char, font, color=0xffffff, size=1):
         """
@@ -185,6 +189,30 @@ class ST7735(object):
                     y += size * font['height'] + 1
                     px = x
 
+    def draw_bitmap(self, bmp, x=0, y=0):
+        """
+        Takes bitmap from file and draws it to screen. For landscape, it may
+        need to be mirrored vertically to display correctly.
+        """
+        if bmp is None:
+            return
+
+        x = min(self.width-1, max(0, x))
+        y = min(self.height-1, max(0, y))
+        w = bmp.w()
+        h = bmp.h()
+        if self.width < x+w:
+            return
+        if self.height < y+h:
+            return
+
+        self._set_rect(x, y, x+w-1, y+h-1)
+        self._write(command=_RAMWR)
+        for _ in range(w*h):
+            c = bmp.get_pixel_color()
+            self._write(data=self._encode_color(c))
+        bmp.close()
+
     def _encode_color(self, color):
         """
         Encodes 24bit int to address array with three 8bit values
@@ -207,6 +235,7 @@ class ST7735(object):
         if chunks:
             for _ in range(chunks):
                 self._write(data=data*chunk_size)
+                gc.collect()
         self._write(data=data*rest)
         gc.collect()
 

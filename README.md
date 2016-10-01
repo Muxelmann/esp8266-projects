@@ -7,7 +7,7 @@ This is a repository containing several MicroPyhton based projects that can be e
 
 ## ST7735 screen
 
-A fast implementation using hardware SPI to send data to the ST7735 display. For more information refer to the folder's README file.
+A fast implementation using hardware SPI to send data to the ST7735 display. For more information refer to the folder's [README](https://github.com/Muxelmann/esp8266-projects/tree/master/st7735-tft) file.
 
 
 

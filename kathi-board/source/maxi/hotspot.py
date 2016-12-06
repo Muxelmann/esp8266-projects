@@ -22,6 +22,8 @@ def join_home_net(essid, password):
     sta_if.active(True)
 
     if sta_if.active() and sta_if.isconnected():
+        import webrepl
+        webrepl.stop()
         sta_if.disconnect()
     if not sta_if.isconnected():
         sta_if.active(True)
@@ -43,31 +45,31 @@ def join_home_net(essid, password):
         return False
 
 def join_net_on_list(wifi_list='wifi.txt'):
-    essids = get_wifis()
-    wifi_list = get_list()
+    wifis = get_wifis()
+    (essids, passwords) = get_list()
 
-    for essid in wifi_list.keys():
-
-        if essid not in essids:
+    for i in range(len(essids)):
+        if essids[i] not in wifis:
             continue
-
-        if join_home_net(essid, wifi_list[essid]):
-            print('Did connect to: "' + essid + '"')
+        if join_home_net(essids[i], passwords[i]):
+            print('Did connect to: "' + essids[i] + '"')
             return True
         else:
-            print('Connection to ""' + essid + '" failed')
+            print('Connection to ""' + essids[i] + '" failed')
     return False
 
 def get_list(wifi_file='wifi.txt'):
     f = open(wifi_file)
     wifi = f.readline()
-    wifi_list = {}
+    essids = []
+    passwords = []
     while len(wifi) > 1:
         (essid, password) = str(wifi[0:-1]).split(',')
-        wifi_list[essid] = password
+        essids.append(essid)
+        passwords.append(password)
         wifi = f.readline()
     f.close()
-    return wifi_list
+    return (essids, passwords)
 
 def get_wifis():
     sta_if = network.WLAN(network.STA_IF)

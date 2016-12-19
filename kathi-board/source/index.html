@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Maxi-Frame</title>
+  <!-- ##FAVICON## -->
+</head>
+<body>
+<style>
+body {
+  background: rgb(200,200,210);
+}
+#loading_p {
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  color: red;
+  font-size: 20px;
+}
+#loading_p div {
+  padding: 12px;
+  width: 188px;
+  margin: 100px auto;
+  box-shadow: 0 2px 6px rgba(0,0,0,.3);
+}
+#loading_p div p {
+  padding: 12px;
+  margin: 0;
+  text-align: center;
+  vertical-align: middle;
+  background: rgba(255,255,255,0.8);
+}
+</style>
+<div id="loading_p"><div><p>LOADING...<br>Please wait</p></div></div>
+<h1>Picture Frame</h1>
+<form>
+Wifi name (<i>no special characters supported</i>):<br>
+<input id="wifi" type="text" value="WifiName"><br><br>
+Password:<br>
+<input id="password" type="password" value="password"> :
+<i>show</i><input id="show_password" type="checkbox" defaultChecked="FALSE" onclick="toggle_password()"><br><br>
+<input type="button" onclick="send_message()" value="Save">
+</form>
+<script>
+function send_message() {
+  var f = document.createElement("FORM");
+  f.setAttribute("id", "wifi_form");
+  f.setAttribute("action", "/add_wifi");
+  f.setAttribute("method", "post");
+  document.body.appendChild(f);
+  var in1 = document.createElement("INPUT");
+  in1.setAttribute("type", "hidden");
+  in1.setAttribute("name", "wifi");
+  in1.setAttribute("value", document.getElementById('wifi').value);
+  document.getElementById("wifi_form").appendChild(in1);
+  var in2 = document.createElement("INPUT");
+  in2.setAttribute("type", "hidden");
+  in2.setAttribute("name", "password");
+  in2.setAttribute("value", document.getElementById('password').value);
+  document.getElementById("wifi_form").appendChild(in2);
+  // document.getElementById('wifi_form').submit();
+}
+function toggle_password() {
+  if (document.getElementById("show_password").checked) {
+    document.getElementById("password").type = "text";
+  } else {
+    document.getElementById("password").type = "password";
+  }
+}
+function delete_wlan(name) {
+  var f = document.createElement("FORM");
+  f.setAttribute("id", "wifi_form");
+  f.setAttribute("action", "/delete_wifi");
+  f.setAttribute("method", "post");
+  document.body.appendChild(f);
+  var in1 = document.createElement("INPUT");
+  in1.setAttribute("type", "hidden");
+  in1.setAttribute("name", "wifi");
+  in1.setAttribute("value", name);
+  document.getElementById("wifi_form").appendChild(in1);
+  // document.getElementById('wifi_form').submit();
+}
+</script>
+<!-- ##DATA## -->
+<script>
+var loading = document.getElementById("loading_p");
+var loading_opacity = 1.0;
+var loading_make_transparent = setInterval(function() {
+  loading_opacity -= 0.02;
+  loading.style.opacity = loading_opacity;
+  if (loading_opacity <= 0.0) {
+    clearInterval(loading_make_transparent);
+    document.body.removeChild(loading);
+  }
+}, 10);
+</script>
+</body>
+</html>

@@ -14,6 +14,7 @@ def open_ap(essid, password):
         Pin(2, Pin.OUT).high()
     else:
         Pin(2, Pin.OUT).low()
+    return ap_if.ifconfig()
 
 def join_home_net(essid, password):
     global _attempts

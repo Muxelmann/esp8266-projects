@@ -170,27 +170,28 @@ def text(x, y, string, font, color=0xffffff, size=1):
                 px = x
 
 
-def draw_bitmap(bmp, x=0, y=0):
+def prep_rect(w, h, x=0, y=0):
     global _width, _height, _RAMWR
-    if bmp is None:
-        return
+    if w is None or h is None:
+        return False
 
     x = min(_width-1, max(0, x))
     y = min(_height-1, max(0, y))
-    w = bmp.w()
-    h = bmp.h()
     if _width < x+w:
-        return
+        return False
     if _height < y+h:
-        return
+        return False
 
     _set_rect(x, y, x+w-1, y+h-1)
     _write(command=_RAMWR)
-    data = bmp.get_pixel_arrays()
-    while data is not None:
+    return True
+
+
+def fill_rect(data):
+    if data is not None:
         _write(data=data)
-        data = bmp.get_pixel_arrays()
-    bmp.close()
+        return True
+    return False
 
 
 def init(dc=Pin(4), rst=Pin(16), led=Pin(5), width=128, height=160):

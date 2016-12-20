@@ -57,8 +57,8 @@ if __name__ == '__main__':
         st7735.clear(0xffffff)
         st7735.text(1, 1, 'Starting server\nIP: ' + ip, font, 0x000000)
 
-        import server
-        server.start_server()
+        import webserver
+        webserver.start()
 
     else:
         print('I need to be connected manually')

@@ -23,7 +23,7 @@ def http_get(url):
             break
     f.close()
 
-def convert():
+def convert_bmp(image_name='image.bmp'):
     f_in = open('tmp', 'rb')
     bmp_start = False
     while not bmp_start:
@@ -33,7 +33,7 @@ def convert():
             if data == b'\n\r\n':
                 bmp_start = True
     if bmp_start:
-        f_out = open('image.bmp', 'wb')
+        f_out = open(image_name, 'wb')
         data = f_in.read(1024)
         while data and len(data) > 0:
             f_out.write(data)
@@ -44,11 +44,11 @@ def convert():
     f_in.close()
     return bmp_start
 
-def display_image(display):
+def display_image(display, convert_bmp='image.bmp'):
     import bitmap
     http_get('http://api.gerfficient.com/img/esp_image')
     if convert():
         Pin(2).low()
-        display.draw_bitmap(bitmap.Bitmap('image.bmp'))
+        display.draw_bitmap(bitmap.Bitmap(convert_bmp))
         os.remove('tmp')
         Pin(2).high()
